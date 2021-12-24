@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: GPL-3.0
+//Писал контракт Моргун С.А П-319 
+pragma solidity >0.7.0 <0.9.0;
+//--------------------------->>>>>Структуры, конструкторы и маппинги<<<<<--------------------------------------------
+    //Начало контракта
+        contract Nadejda {
+            //Структура Пользователя 
+                struct User{
+                    string login;
+                    string password;
+                    uint balance;
+                    bool role;
+                    bool logged;
+                }
+                                        //Маппинг пользователей 
+                                        mapping(address => User) public us;
+                                        //Показать адреса пользователя 
+                                        address [] public userlist;
+                                        //Количество админов в системе 
+                                        uint public adminAmount;
+                                        //Маппинг Адресов 
+                                        mapping(string => address) addresses;
+                
+                //Структура Перевода 
+                struct Transfer{
+                    address toUs;
+                    address fromUs;
+                    string description;
+                    string codeword;
+                    uint value;
+                    uint time;
+                    bool status;
+                }
+
+                                        //Список Переводов в системе 
+                                        Transfer [] public transfers;
+                                        //Количестиов перкводов в ситеме 
+                                        uint public transferId;
+
+    //Коструктор 
+        //User
+ constructor() {
+     //Нулевой аккаунт
+    us[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = User("zero", "zero", 100000000000000, true, true);
+
+    us[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = User("User", "123", 1000000000000000, false, false);
+    us[0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db] = User("User", "123", 1000000000000000, false, false);
+    us[0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB] = User("User", "123", 1000000000000000, false, false);
+    us[0x617F2E2fD72FD9D5503197092aC168c91465E7f2] = User("User", "123", 1000000000000000, false, false);
+    us[0x17F6AD8Ef982297579C203069C1DbfFE4348c372] = User("User", "123", 1000000000000000, false, false);
+ }
+
+    //Модификатор ХТОАДМИН???
+        modifier isAdmin(){
+            require(us[msg.sender].role);
+            _;
+        } 
+//-------------------------------------->>>>>>>USER<<<<<<----------------------------------------------
+    //Функиця создания Usera
+    function createUser(address addr, string memory lg, string memory pw) public {
+        require(msg.sender == 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, "error: 1");
+        require(addresses[lg] == address(0), "error: 2");
+        us[addr] = User(lg, pw, 0, false, false);
+        userlist.push(addr);
+        }
+        //Получить ареосв пользователей 
+        function getUserlist() view public returns(uint) {
+            return(userlist.length);
+        }
+            //Получить Список адресов 
+            function getAddr(string memory lg) view public returns(address [] memory) {
+                return(userlist);
+            }
+                //Проверка зареган ли аккаунт????
+                function logged(address Us) view public returns(bool) {
+                    return(us[Us].logged);
+                }
+                    //Выйти из аккаунта 
+                    function getOut(string memory lg) public {
+                        require(msg.sender == addresses[lg]);
+                        require(addresses[lg] == address(0));
+                        require(us[addresses[lg]].logged == true);
+                        us[addresses[lg]].logged = false;
+                    }
+//-------------------------------->>>>>>>>>>>TRANSFER<<<<<<<----------------------------------------------
+    //Функция создания перевода 
+    function createTranfer(address addr, string memory codeword, string memory description) public payable {
+       require(msg.value > 0, "error: 3");
+       require(msg.sender != addr, "error 4");
+       require(addr != address(0), "error 5"); 
+       transfers.push(Transfer(addr, msg.sender, description, codeword, msg.value, 0, true));
+       transferId++;
+    }
+        ///Функция подтверждение перевода 
+        function confirmTranfer(uint transferId, string memory codeword) public payable {
+            require(transfers[transferId].toUs == msg.sender, "error 6");
+            require(transfers[transferId].status == true, "error 7");
+                if (keccak256(bytes(transfers[transferId].codeword)) == keccak256(bytes(codeword))) {
+                    payable(msg.sender).transfer(transfers[transferId].value);
+                    transfers[transferId].time = block.timestamp;
+                    transfers[transferId].status = false;
+                }
+                else {
+                    payable(transfers[transferId].fromUs).transfer(transfers[transferId].value);
+                }
+    }
+            //Функция отмены перевода 
+            function concelTranfer(uint transferId) public payable {
+                require(transfers[transferId].fromUs == msg.sender, "error 8");
+                require(transfers[transferId].status == true, "error 9");
+                payable(msg.sender).transfer(transfers[transferId].value);
+                transfers[transferId].status = false;
+            }         
+                //Просмотр айди транзакции 
+                function getTransferId() view public returns(uint) {
+                    return(transfers.length - 1);
+                }
+                    //Просмотр баланса пользователя 
+                    function getBalance(address addr) view public returns(uint) {
+                        return addr.balance;
+                    }
+                        //Просмотр Админа в системе 
+                        function getAmountAdmin() public view returns(uint) {
+                            return adminAmount;
+                        }
+                            //Просмотр информации о переводе 
+                            function getTransfer(uint transferId) public view returns(address, address, string memory, string memory, uint, uint, bool) {
+                                return(
+                                transfers[transferId].toUs,
+                                transfers[transferId].fromUs,
+                                transfers[transferId].description,
+                                transfers[transferId].codeword,
+                                transfers[transferId].value,
+                                transfers[transferId].time,
+                                transfers[transferId].status
+                                );
+                            }
+//-------------------------------->>>>>>>>>>>>ROLE<<<<<<<<<<<-------------------------------------------------
+    //Функция смены роли 
+    function changeRole(address user) public isAdmin {
+        require(us[user].role != true, "error 10");
+        us[user].role = true;
+        adminAmount++;
+    }
+}               
